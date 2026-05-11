@@ -1,0 +1,53 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Model artefacts — too large for git (>50 MB) ─────────────────────────────
+# See DEPLOYMENT.md for how to handle model.pkl on Streamlit Cloud
+model.pkl
+*.pkl
+*.pickle
+
+# ── FastF1 disk cache — not needed in repo ────────────────────────────────────
+fastf1_cache/
+cache/
+.fastf1_cache/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+.env.*
+secrets.toml
+.streamlit/secrets.toml
+
+# ── Output ────────────────────────────────────────────────────────────────────
+output/
+*.log
