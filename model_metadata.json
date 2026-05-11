@@ -1,0 +1,78 @@
+{
+  "safe_feature_cols": [
+    "grid_position",
+    "quali_gap_to_pole",
+    "rolling_avg_finish_3",
+    "rolling_dnf_rate_3",
+    "constructor_rank",
+    "circuit_type",
+    "adaptation_score",
+    "pit_stop_count"
+  ],
+  "feature_dtypes": {
+    "grid_position": "float64",
+    "quali_gap_to_pole": "float64",
+    "rolling_avg_finish_3": "float64",
+    "rolling_dnf_rate_3": "float64",
+    "constructor_rank": "int64",
+    "circuit_type": "int64",
+    "adaptation_score": "float64",
+    "pit_stop_count": "int64"
+  },
+  "leakage_cols": [
+    "final_position",
+    "points",
+    "top3",
+    "is_dnf",
+    "fastest_lap_s"
+  ],
+  "training_date": "2026-05-11 21:09:55",
+  "years_trained": [
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "num_races_used": 96,
+  "num_samples": 1926,
+  "num_features": 8,
+  "xgb_params": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "eval_metric": "logloss",
+    "scale_pos_weight": 5.69,
+    "use_label_encoder": false,
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "cv_folds": 5,
+  "cv_split_method": "Race-level TimeSeriesSplit \u2014 no intra-race split, no temporal leakage",
+  "model_accuracy": 0.7148,
+  "avg_precision": 0.7148,
+  "accuracy_score": 0.8803,
+  "precision_score": 0.5664,
+  "recall_score": 0.8542,
+  "f1_score": 0.6803,
+  "roc_auc_score": 0.9364,
+  "class_balance": {
+    "pos_samples": 288,
+    "neg_samples": 1638,
+    "scale_pos_weight": 5.69,
+    "top3_rate": 0.1495
+  },
+  "sample_weights": {
+    "2026": 1.0,
+    "pre_2026": 0.4
+  },
+  "output_charts": {
+    "feature_importance": "/Users/alvinaug1105/Documents/f1-2026-race-predictor/data/feature_importance.png",
+    "roc_curve": "/Users/alvinaug1105/Documents/f1-2026-race-predictor/data/roc_curve.png",
+    "pr_curve": "/Users/alvinaug1105/Documents/f1-2026-race-predictor/data/pr_curve.png",
+    "cv_accuracy": "/Users/alvinaug1105/Documents/f1-2026-race-predictor/data/cv_accuracy.png",
+    "cv_auc_trend": "/Users/alvinaug1105/Documents/f1-2026-race-predictor/data/cv_auc_trend.png"
+  }
+}
