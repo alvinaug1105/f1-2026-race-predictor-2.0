@@ -532,9 +532,9 @@ def _render_sidebar(meta: dict) -> str:
             label_visibility="collapsed",
         )
         st.markdown("---")
-        last_event = (meta.get("last_updated_race") or {}).get("event_name", "N/A")
-        races_used = int(meta.get("races_used", 0))
-        ap_score   = float(meta.get("avg_precision", 0.0))
+        last_event = meta.get("training_date", "N/A")[:10]   # 顯示 "2026-05-11"
+        races_used = int(meta.get("num_races_used", 0))       # 顯示 96
+        ap_score   = float(meta.get("avg_precision", 0.0))    # 已正確
         st.metric("Last Trained",   str(last_event))
         st.metric("Races in Model", str(races_used))
         st.metric("Model AP Score", f"{ap_score:.3f}")
