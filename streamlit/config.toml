@@ -1,1 +1,24 @@
+# .streamlit/config.toml
+# F1 2026 Predictor — Streamlit Cloud configuration
 
+[theme]
+base            = "dark"
+primaryColor    = "#E8002D"
+backgroundColor = "#15151E"
+secondaryBackgroundColor = "#1e1e2e"
+textColor       = "#FFFFFF"
+font            = "sans serif"
+
+[server]
+# Streamlit Cloud sets PORT automatically — do not hardcode
+headless        = true
+enableCORS      = false
+enableXsrfProtection = true
+maxUploadSize   = 5
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+# Prevents "ScriptRunner" thread issues on Cloud
+magicEnabled    = false
