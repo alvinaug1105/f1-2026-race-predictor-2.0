@@ -1,0 +1,89 @@
+driver_number,driver_abbr,team,grid_position,final_position,points,is_dnf,fastest_lap_s,pit_stop_count,event_name,year,round,quali_best_lap_s,gap_to_pole_s,top3,sample_weight
+63,RUS,Mercedes,1.0,1.0,25.0,0,82.67,1,Australian Grand Prix,2026,1,78.518,0.0,1,1.0
+12,ANT,Mercedes,2.0,2.0,18.0,0,82.417,1,Australian Grand Prix,2026,1,78.811,0.293,1,1.0
+16,LEC,Ferrari,4.0,3.0,15.0,0,82.579,1,Australian Grand Prix,2026,1,79.327,0.809,1,1.0
+44,HAM,Ferrari,7.0,4.0,12.0,0,82.423,1,Australian Grand Prix,2026,1,79.478,0.96,0,1.0
+1,NOR,McLaren,6.0,5.0,10.0,0,82.358,2,Australian Grand Prix,2026,1,79.475,0.957,0,1.0
+3,VER,Red Bull Racing,20.0,6.0,8.0,0,82.091,2,Australian Grand Prix,2026,1,102.025,23.507,0,1.0
+87,BEA,Haas F1 Team,12.0,7.0,6.0,0,84.02,1,Australian Grand Prix,2026,1,80.311,1.793,0,1.0
+41,LIN,Racing Bulls,9.0,8.0,4.0,0,84.182,1,Australian Grand Prix,2026,1,79.971,1.453,0,1.0
+5,BOR,Audi,10.0,9.0,2.0,0,83.257,2,Australian Grand Prix,2026,1,80.221,1.703,0,1.0
+10,GAS,Alpine,14.0,10.0,1.0,0,84.486,1,Australian Grand Prix,2026,1,80.501,1.983,0,1.0
+31,OCO,Haas F1 Team,13.0,11.0,0.0,0,84.424,1,Australian Grand Prix,2026,1,80.491,1.973,0,1.0
+23,ALB,Williams,15.0,12.0,0.0,0,84.375,2,Australian Grand Prix,2026,1,80.941,2.423,0,1.0
+30,LAW,Racing Bulls,8.0,13.0,0.0,0,83.783,2,Australian Grand Prix,2026,1,79.994,1.476,0,1.0
+43,COL,Alpine,16.0,14.0,0.0,0,82.926,2,Australian Grand Prix,2026,1,81.2,2.682,0,1.0
+55,SAI,Williams,21.0,15.0,0.0,0,83.59,3,Australian Grand Prix,2026,1,,,0,1.0
+11,PER,Cadillac,18.0,16.0,0.0,0,86.07,2,Australian Grand Prix,2026,1,82.605,4.087,0,1.0
+18,STR,Aston Martin,22.0,17.0,0.0,0,85.41,4,Australian Grand Prix,2026,1,,,0,1.0
+14,ALO,Aston Martin,17.0,18.0,0.0,1,85.713,2,Australian Grand Prix,2026,1,81.969,3.451,0,1.0
+77,BOT,Cadillac,19.0,19.0,0.0,1,87.364,1,Australian Grand Prix,2026,1,83.244,4.726,0,1.0
+6,HAD,Red Bull Racing,3.0,20.0,0.0,1,85.239,0,Australian Grand Prix,2026,1,79.303,0.785,0,1.0
+81,PIA,McLaren,5.0,21.0,0.0,0,,0,Australian Grand Prix,2026,1,79.38,0.862,0,1.0
+27,HUL,Audi,11.0,22.0,0.0,0,,0,Australian Grand Prix,2026,1,80.303,1.785,0,1.0
+12,ANT,Mercedes,1.0,1.0,25.0,0,95.275,1,Chinese Grand Prix,2026,2,92.064,0.0,1,1.0
+63,RUS,Mercedes,2.0,2.0,18.0,0,95.4,1,Chinese Grand Prix,2026,2,92.286,0.222,1,1.0
+44,HAM,Ferrari,3.0,3.0,15.0,0,96.092,1,Chinese Grand Prix,2026,2,92.415,0.351,1,1.0
+16,LEC,Ferrari,4.0,4.0,12.0,0,96.011,1,Chinese Grand Prix,2026,2,92.428,0.364,0,1.0
+87,BEA,Haas F1 Team,10.0,5.0,10.0,0,96.429,1,Chinese Grand Prix,2026,2,93.197,1.133,0,1.0
+10,GAS,Alpine,7.0,6.0,8.0,0,96.505,1,Chinese Grand Prix,2026,2,92.873,0.809,0,1.0
+30,LAW,Racing Bulls,14.0,7.0,6.0,0,97.096,1,Chinese Grand Prix,2026,2,93.765,1.701,0,1.0
+6,HAD,Red Bull Racing,9.0,8.0,4.0,0,97.311,2,Chinese Grand Prix,2026,2,93.121,1.057,0,1.0
+55,SAI,Williams,17.0,9.0,2.0,0,97.981,1,Chinese Grand Prix,2026,2,94.317,2.253,0,1.0
+43,COL,Alpine,12.0,10.0,1.0,0,96.783,1,Chinese Grand Prix,2026,2,93.357,1.293,0,1.0
+27,HUL,Audi,11.0,11.0,0.0,0,96.18,1,Chinese Grand Prix,2026,2,93.354,1.29,0,1.0
+41,LIN,Racing Bulls,15.0,12.0,0.0,0,96.099,1,Chinese Grand Prix,2026,2,93.784,1.72,0,1.0
+77,BOT,Cadillac,19.0,13.0,0.0,0,98.393,1,Chinese Grand Prix,2026,2,95.436,3.372,0,1.0
+31,OCO,Haas F1 Team,13.0,14.0,0.0,0,95.964,2,Chinese Grand Prix,2026,2,93.538,1.474,0,1.0
+11,PER,Cadillac,21.0,15.0,0.0,0,98.523,1,Chinese Grand Prix,2026,2,96.906,4.842,0,1.0
+3,VER,Red Bull Racing,8.0,16.0,0.0,1,97.046,1,Chinese Grand Prix,2026,2,93.002,0.938,0,1.0
+14,ALO,Aston Martin,18.0,17.0,0.0,1,99.721,1,Chinese Grand Prix,2026,2,95.203,3.139,0,1.0
+18,STR,Aston Martin,20.0,18.0,0.0,1,100.883,0,Chinese Grand Prix,2026,2,95.995,3.931,0,1.0
+81,PIA,McLaren,5.0,19.0,0.0,0,,0,Chinese Grand Prix,2026,2,92.55,0.486,0,1.0
+1,NOR,McLaren,6.0,20.0,0.0,0,,0,Chinese Grand Prix,2026,2,92.608,0.544,0,1.0
+5,BOR,Audi,16.0,21.0,0.0,0,,0,Chinese Grand Prix,2026,2,93.549,1.485,0,1.0
+23,ALB,Williams,22.0,22.0,0.0,0,,0,Chinese Grand Prix,2026,2,94.772,2.708,0,1.0
+12,ANT,Mercedes,1.0,1.0,25.0,0,92.432,1,Japanese Grand Prix,2026,3,88.778,0.0,1,1.0
+81,PIA,McLaren,3.0,2.0,18.0,0,92.996,1,Japanese Grand Prix,2026,3,89.132,0.354,1,1.0
+16,LEC,Ferrari,4.0,3.0,15.0,0,92.634,1,Japanese Grand Prix,2026,3,89.303,0.525,1,1.0
+63,RUS,Mercedes,2.0,4.0,12.0,0,92.549,1,Japanese Grand Prix,2026,3,89.076,0.298,0,1.0
+1,NOR,McLaren,5.0,5.0,10.0,0,93.208,1,Japanese Grand Prix,2026,3,89.409,0.631,0,1.0
+44,HAM,Ferrari,6.0,6.0,8.0,0,92.777,1,Japanese Grand Prix,2026,3,89.567,0.789,0,1.0
+10,GAS,Alpine,7.0,7.0,6.0,0,93.691,1,Japanese Grand Prix,2026,3,89.691,0.913,0,1.0
+3,VER,Red Bull Racing,11.0,8.0,4.0,0,93.552,1,Japanese Grand Prix,2026,3,90.262,1.484,0,1.0
+30,LAW,Racing Bulls,14.0,9.0,2.0,0,94.23,1,Japanese Grand Prix,2026,3,90.495,1.717,0,1.0
+31,OCO,Haas F1 Team,12.0,10.0,1.0,0,94.256,1,Japanese Grand Prix,2026,3,90.309,1.531,0,1.0
+27,HUL,Audi,13.0,11.0,0.0,0,93.732,1,Japanese Grand Prix,2026,3,90.358,1.58,0,1.0
+6,HAD,Red Bull Racing,8.0,12.0,0.0,0,93.837,1,Japanese Grand Prix,2026,3,89.978,1.2,0,1.0
+5,BOR,Audi,9.0,13.0,0.0,0,94.164,1,Japanese Grand Prix,2026,3,89.99,1.212,0,1.0
+41,LIN,Racing Bulls,10.0,14.0,0.0,0,94.314,1,Japanese Grand Prix,2026,3,90.109,1.331,0,1.0
+55,SAI,Williams,16.0,15.0,0.0,0,94.514,1,Japanese Grand Prix,2026,3,90.927,2.149,0,1.0
+43,COL,Alpine,15.0,16.0,0.0,0,94.512,1,Japanese Grand Prix,2026,3,90.627,1.849,0,1.0
+11,PER,Cadillac,19.0,17.0,0.0,0,95.637,1,Japanese Grand Prix,2026,3,92.206,3.428,0,1.0
+14,ALO,Aston Martin,21.0,18.0,0.0,0,96.221,2,Japanese Grand Prix,2026,3,92.646,3.868,0,1.0
+77,BOT,Cadillac,20.0,19.0,0.0,0,96.269,1,Japanese Grand Prix,2026,3,92.33,3.552,0,1.0
+23,ALB,Williams,17.0,20.0,0.0,0,93.427,6,Japanese Grand Prix,2026,3,91.088,2.31,0,1.0
+18,STR,Aston Martin,22.0,21.0,0.0,1,97.217,2,Japanese Grand Prix,2026,3,92.92,4.142,0,1.0
+87,BEA,Haas F1 Team,18.0,22.0,0.0,1,95.604,1,Japanese Grand Prix,2026,3,91.09,2.312,0,1.0
+12,ANT,Mercedes,1.0,1.0,25.0,0,91.968,1,Miami Grand Prix,2026,4,87.798,0.0,1,1.0
+1,NOR,McLaren,4.0,2.0,18.0,0,91.869,1,Miami Grand Prix,2026,4,88.183,0.385,1,1.0
+81,PIA,McLaren,7.0,3.0,15.0,0,91.949,1,Miami Grand Prix,2026,4,88.332,0.534,1,1.0
+63,RUS,Mercedes,5.0,4.0,12.0,0,92.446,1,Miami Grand Prix,2026,4,88.197,0.399,0,1.0
+3,VER,Red Bull Racing,2.0,5.0,10.0,0,93.11,1,Miami Grand Prix,2026,4,87.964,0.166,0,1.0
+44,HAM,Ferrari,6.0,6.0,8.0,0,92.676,1,Miami Grand Prix,2026,4,88.319,0.521,0,1.0
+43,COL,Alpine,8.0,7.0,6.0,0,93.035,1,Miami Grand Prix,2026,4,88.762,0.964,0,1.0
+16,LEC,Ferrari,3.0,8.0,4.0,0,92.515,1,Miami Grand Prix,2026,4,88.143,0.345,0,1.0
+55,SAI,Williams,13.0,9.0,2.0,0,93.026,1,Miami Grand Prix,2026,4,89.54,1.742,0,1.0
+23,ALB,Williams,15.0,10.0,1.0,0,93.784,1,Miami Grand Prix,2026,4,89.72,1.922,0,1.0
+87,BEA,Haas F1 Team,12.0,11.0,0.0,0,93.744,1,Miami Grand Prix,2026,4,89.34,1.542,0,1.0
+5,BOR,Audi,21.0,12.0,0.0,0,93.5,1,Miami Grand Prix,2026,4,93.737,5.939,0,1.0
+31,OCO,Haas F1 Team,14.0,13.0,0.0,0,93.712,1,Miami Grand Prix,2026,4,89.772,1.974,0,1.0
+41,LIN,Racing Bulls,16.0,14.0,0.0,0,94.058,1,Miami Grand Prix,2026,4,90.133,2.335,0,1.0
+14,ALO,Aston Martin,17.0,15.0,0.0,0,93.512,1,Miami Grand Prix,2026,4,91.098,3.3,0,1.0
+11,PER,Cadillac,20.0,16.0,0.0,0,94.895,1,Miami Grand Prix,2026,4,91.967,4.169,0,1.0
+18,STR,Aston Martin,18.0,17.0,0.0,0,94.716,2,Miami Grand Prix,2026,4,91.164,3.366,0,1.0
+77,BOT,Cadillac,19.0,18.0,0.0,0,96.08,3,Miami Grand Prix,2026,4,91.629,3.831,0,1.0
+27,HUL,Audi,10.0,19.0,0.0,1,94.523,1,Miami Grand Prix,2026,4,89.439,1.641,0,1.0
+30,LAW,Racing Bulls,11.0,20.0,0.0,1,94.814,0,Miami Grand Prix,2026,4,89.499,1.701,0,1.0
+10,GAS,Alpine,9.0,21.0,0.0,1,94.856,0,Miami Grand Prix,2026,4,88.81,1.012,0,1.0
+6,HAD,Red Bull Racing,22.0,22.0,0.0,1,94.833,1,Miami Grand Prix,2026,4,88.789,0.991,0,1.0
