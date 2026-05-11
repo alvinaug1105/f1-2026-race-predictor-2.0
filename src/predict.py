@@ -45,7 +45,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # FastF1 cache
-fastf1.Cache.enable_cache(str(DATA_DIR / "cache"))
+# FastF1 cache — disabled on Streamlit Cloud (no persistent disk)
+import os
+if os.path.exists(str(DATA_DIR / "cache")):
+    fastf1.Cache.enable_cache(str(DATA_DIR / "cache"))
+# else: no cache — FastF1 still works, just slower
 
 
 # ─────────────────────────────────────────────────────────────────────────────
