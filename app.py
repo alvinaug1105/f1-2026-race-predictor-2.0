@@ -1,6 +1,10 @@
 """
-app.py  (v5 — final)
-F1 2026 Race Outcome Predictor — Streamlit web app.
+app.py  (v6 — bug fixes)
+=========================
+Fixes applied:
+  Bug #1 — grid_csv_path param mismatch: handled in src/predict.py
+  Bug #2 — sidebar shows N/A/0: use training_date + num_races_used keys
+  Bug #3 — all multi-line strings use list-join pattern (no raw newlines)
 """
 
 import json
@@ -41,7 +45,7 @@ FEATURE_DESCRIPTIONS = {
     "rolling_avg_finish_3":  "Avg finish position, last 3 races",
     "rolling_dnf_rate_3":    "DNF rate, last 3 races",
     "constructor_rank":      "Team championship position at race time",
-    "circuit_type":          "Track type: 0=street 1=technical 2=fast",
+    "circuit_type":          "Track type: 0=permanent 1=street/mixed 2=fast",
     "adaptation_score":      "2026 regulation adaptation score (team)",
     "pit_stop_count":        "Avg pit stops, last 3 races",
 }
@@ -78,8 +82,8 @@ except ImportError:
 
 def _inject_css() -> None:
     css_parts = [
-        f".stApp, .main .block-container {{background-color:{F1_DARK};color:{F1_WHITE};}}",
-        f"[data-testid='stSidebar'] {{background-color:{F1_SIDEBAR};border-right:1px solid {F1_RED};box-shadow:2px 0 12px rgba(232,0,45,0.15);}}",
+        f".stApp,.main .block-container{{background-color:{F1_DARK};color:{F1_WHITE};}}",
+        f"[data-testid='stSidebar']{{background-color:{F1_SIDEBAR};border-right:1px solid {F1_RED};box-shadow:2px 0 12px rgba(232,0,45,0.15);}}",
         f"[data-testid='stSidebar'] *{{color:{F1_WHITE} !important;}}",
         f"[data-testid='stSidebar'] .stRadio label[aria-checked='true']{{border-left:3px solid {F1_RED} !important;padding-left:10px !important;background-color:{F1_CARD} !important;}}",
         f"[data-testid='stSidebar'] [data-testid='stMetricValue']{{color:{F1_RED} !important;font-size:1.1rem !important;font-weight:700 !important;}}",
@@ -128,23 +132,26 @@ def _load_model():
 @st.cache_resource
 def _load_metadata() -> dict:
     defaults = {
-        "last_updated_race":   {"event_name": "N/A"},
-        "races_used":          0,
-        "avg_precision":       0.0,
-        "roc_auc_score":       0.0,
-        "model_performance":   {
+        # ── Actual keys in model_metadata.json ──
+        "training_date":    "N/A",
+        "num_races_used":   0,
+        "avg_precision":    0.0,
+        "roc_auc_score":    0.0,
+        "safe_feature_cols": [],
+        # ── Legacy / optional keys ──
+        "races_used":       0,
+        "last_updated_race": {"event_name": "N/A"},
+        "model_performance": {
             "average_precision": 0.0,
             "roc_auc":           0.0,
             "cv_fold_ap_scores": [],
             "cv_fold_ap_std":    0.0,
         },
-        "class_balance":       {"top3_positive_rate": 0.15},
+        "class_balance":    {"top3_positive_rate": 0.15},
         "weight_justification": {
             "pearson_r_grid_finish_2022_2025": "N/A",
             "pearson_r_grid_finish_2026":      "N/A",
         },
-        "training_data":       {"races_used": 0},
-        "safe_feature_cols":   [],
     }
     if not META_PATH.exists():
         return defaults
@@ -152,8 +159,14 @@ def _load_metadata() -> dict:
         meta = json.loads(META_PATH.read_text(encoding="utf-8"))
         for k, v in defaults.items():
             meta.setdefault(k, v)
-        if not meta.get("races_used"):
-            meta["races_used"] = meta.get("training_data", {}).get("races_used", 0)
+        # Normalise num_races_used — accept new key or legacy aliases
+        if not meta.get("num_races_used"):
+            meta["num_races_used"] = (
+                meta.get("races_used") or
+                meta.get("training_data", {}).get("races_used", 0)
+            )
+        meta.setdefault("races_used", meta["num_races_used"])
+        # Normalise avg_precision
         if not meta.get("avg_precision"):
             meta["avg_precision"] = meta.get("model_performance", {}).get("average_precision", 0.0)
         return meta
@@ -314,7 +327,7 @@ def _learning_curve_chart(lc_df, meta: dict):
     if lc_df is not None and not lc_df.empty:
         df = lc_df.copy()
     else:
-        n  = int(meta.get("races_used", 0))
+        n  = int(meta.get("num_races_used", meta.get("races_used", 0)))
         ap = float(meta.get("avg_precision", 0.0))
         if n == 0:
             return None
@@ -532,12 +545,17 @@ def _render_sidebar(meta: dict) -> str:
             label_visibility="collapsed",
         )
         st.markdown("---")
-        last_event = meta.get("training_date", "N/A")[:10]   # 顯示 "2026-05-11"
-        races_used = int(meta.get("num_races_used", 0))       # 顯示 96
-        ap_score   = float(meta.get("avg_precision", 0.0))    # 已正確
-        st.metric("Last Trained",   str(last_event))
+
+        # ── Bug #2 fix: use actual model_metadata.json key names ──────────────
+        training_date = meta.get("training_date", "N/A")
+        last_event    = str(training_date)[:10] if str(training_date) != "N/A" else "N/A"
+        races_used    = int(meta.get("num_races_used", meta.get("races_used", 0)))
+        ap_score      = float(meta.get("avg_precision", 0.0))
+
+        st.metric("Last Trained",   last_event)
         st.metric("Races in Model", str(races_used))
         st.metric("Model AP Score", f"{ap_score:.3f}")
+
         st.markdown("---")
         disc_style = f"color:{F1_GREY};font-size:0.75rem;text-align:center;"
         st.markdown(
@@ -587,15 +605,16 @@ def _page_next_race(meta: dict) -> None:
             st.rerun()
 
         with st.expander("Grid CSV Format"):
-            grid_csv_example = (
-                "driver_abbr,team,grid_position,gap_to_pole_s\n"
-                "NOR,McLaren,1,0.000\n"
-                "VER,Red Bull,2,0.082\n"
-                "LEC,Ferrari,3,0.134\n"
-                "..."
-            )
+            # All CSV content in one pre-assigned variable — no raw newlines
+            grid_csv_example = "\n".join([
+                "driver_abbr,team,grid_position,gap_to_pole_s,rolling_avg_finish_3,rolling_dnf_rate_3,constructor_rank,circuit_type,adaptation_score,pit_stop_count",
+                "NOR,McLaren,1,0.000,2.3,0.00,2,1,0.88,2",
+                "VER,Red Bull,2,0.142,1.7,0.00,1,1,0.92,2",
+                "LEC,Ferrari,3,0.287,3.1,0.33,3,1,0.91,2",
+                "...",
+            ])
             st.code(grid_csv_example, language="csv")
-            st.caption("20 rows expected — one per driver.")
+            st.caption("20 rows expected. circuit_type: 0=permanent, 1=street/mixed, 2=fast.")
 
     with col_out:
         if predict_btn and selected_race != "No upcoming races found":
@@ -646,19 +665,22 @@ def _page_next_race(meta: dict) -> None:
                 with st.expander("Model Confidence"):
                     mp          = meta.get("model_performance", {})
                     ap          = float(meta.get("avg_precision", 0.0))
-                    n           = int(meta.get("races_used", 0))
+                    n           = int(meta.get("num_races_used", meta.get("races_used", 0)))
                     n26         = meta.get("class_balance", {}).get("pos_samples", "?")
                     fold_scores = mp.get("cv_fold_ap_scores", [])
-                    lines_body  = [
+                    # Use list + join — no multi-line f-strings
+                    body_lines = [
                         f"- **Model AP Score:** `{ap:.3f}` (random baseline approx 0.15)",
                         f"- **Races in training:** `{n}` total",
                         f"- **2026 podium events:** `{n26}`",
                     ]
                     if fold_scores:
-                        lines_body.append(f"- **CV fold AP scores:** `{[round(x, 3) for x in fold_scores]}`")
-                    lines_body.append("")
-                    lines_body.append("> Confidence increases as the 2026 season progresses.")
-                    st.markdown("\n".join(lines_body))
+                        body_lines.append(
+                            f"- **CV fold AP scores:** `{[round(x, 3) for x in fold_scores]}`"
+                        )
+                    body_lines.append("")
+                    body_lines.append("> Confidence increases as the 2026 season progresses.")
+                    st.markdown("\n".join(body_lines))
 
                 st.toast("Prediction complete!", icon="🏎️")
 
@@ -686,10 +708,11 @@ def _page_model_performance(meta: dict) -> None:
     heading_style = f"color:{F1_RED};"
     st.markdown(f"<h2 style='{heading_style}'>Model Performance</h2>", unsafe_allow_html=True)
 
-    mp        = meta.get("model_performance", {})
-    ap_score  = float(meta.get("avg_precision", 0.0))
-    roc_auc   = float(mp.get("roc_auc") or meta.get("roc_auc_score", 0.0))
-    top3_rate = float(meta.get("class_balance", {}).get("top3_positive_rate", 0.15))
+    mp               = meta.get("model_performance", {})
+    ap_score         = float(meta.get("avg_precision", 0.0))
+    roc_auc          = float(mp.get("roc_auc") or meta.get("roc_auc_score", 0.0))
+    top3_rate        = float(meta.get("class_balance", {}).get("top3_positive_rate", 0.15))
+    races_used_total = int(meta.get("num_races_used", meta.get("races_used", 0)))
 
     m1, m2, m3 = st.columns(3, gap="medium")
     with m1:
@@ -697,7 +720,7 @@ def _page_model_performance(meta: dict) -> None:
     with m2:
         st.metric("ROC-AUC", f"{roc_auc:.3f}", help="Random baseline = 0.50.")
     with m3:
-        st.metric("Top-3 Base Rate", f"{top3_rate:.1%}", help="Approx 3/20 drivers per race.")
+        st.metric("Races in Training Set", str(races_used_total))
 
     st.markdown("---")
     st.markdown("#### Model Learning Curve")
