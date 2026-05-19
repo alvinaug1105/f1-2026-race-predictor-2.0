@@ -2,27 +2,15 @@
 src/features.py
 ~~~~~~~~~~~~~~~
 Feature engineering pipeline for the F1 2026 Race Outcome Predictor.
-
-Input  : Raw combined DataFrame (all seasons, from data_loader.collect_season)
-Output : X (features), y (target), weights (sample_weight)
-
-Design decisions
-----------------
-- LEAKAGE_COLS imported from constants.py — not redefined here
-- rolling_avg_finish_3 / rolling_dnf_rate_3 use .shift(1) (no target leakage)
-- NaN rolling values filled with per-driver season average
-- Final feature list written back to model_metadata.json["safe_feature_cols"]
-- adaptation_score computed for 2026 only; 0.0 for pre-2026 rows
+Upgrades: exponential decay sample weights, weather features, driver circuit history.
 """
-
 import json
 import logging
+import fastf1
 from pathlib import Path
 from typing import Optional
-
 import numpy as np
 import pandas as pd
-
 from constants import (
     DATA_DIR,
     LEAKAGE_COLS,
@@ -31,7 +19,6 @@ from constants import (
     WEIGHT_PRE_2026,
 )
 
-# ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -39,126 +26,111 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CIRCUIT TYPE LOOKUP
-# 0 = street circuit  |  1 = technical  |  2 = high-speed
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Circuit type lookup ────────────────────────────────────────────────────────
+# 0 = street | 1 = technical | 2 = high-speed
 CIRCUIT_TYPE: dict[str, int] = {
-    # Street circuits (0)
-    "Monaco Grand Prix"            : 0,
-    "Azerbaijan Grand Prix"        : 0,
-    "Singapore Grand Prix"         : 0,
-    "Saudi Arabian Grand Prix"     : 0,
-    "Las Vegas Grand Prix"         : 0,
-    "Miami Grand Prix"             : 0,
+    "Monaco Grand Prix": 0,
+    "Azerbaijan Grand Prix": 0,
+    "Singapore Grand Prix": 0,
+    "Saudi Arabian Grand Prix": 0,
+    "Las Vegas Grand Prix": 0,
+    "Miami Grand Prix": 0,
+    "Hungarian Grand Prix": 1,
+    "Spanish Grand Prix": 1,
+    "Japanese Grand Prix": 1,
+    "Abu Dhabi Grand Prix": 1,
+    "Australian Grand Prix": 1,
+    "Canadian Grand Prix": 1,
+    "United States Grand Prix": 1,
+    "São Paulo Grand Prix": 1,
+    "Mexican Grand Prix": 1,
+    "Chinese Grand Prix": 1,
+    "Bahrain Grand Prix": 1,
+    "Qatar Grand Prix": 1,
+    "British Grand Prix": 2,
+    "Italian Grand Prix": 2,
+    "Belgian Grand Prix": 2,
+    "Austrian Grand Prix": 2,
+    "Dutch Grand Prix": 2,
+    "Emilia Romagna Grand Prix": 2,
+    "French Grand Prix": 2,
+}
+CIRCUIT_TYPE_DEFAULT = 1
 
-    # Technical circuits (1)
-    "Hungarian Grand Prix"         : 1,
-    "Spanish Grand Prix"           : 1,
-    "Japanese Grand Prix"          : 1,
-    "Abu Dhabi Grand Prix"         : 1,
-    "Australian Grand Prix"        : 1,
-    "Canadian Grand Prix"          : 1,
-    "United States Grand Prix"     : 1,
-    "São Paulo Grand Prix"         : 1,
-    "Mexican Grand Prix"           : 1,
-    "Chinese Grand Prix"           : 1,
-    "Bahrain Grand Prix"           : 1,
-    "Qatar Grand Prix"             : 1,
-
-    # High-speed circuits (2)
-    "British Grand Prix"           : 2,
-    "Italian Grand Prix"           : 2,
-    "Belgian Grand Prix"           : 2,
-    "Austrian Grand Prix"          : 2,
-    "Dutch Grand Prix"             : 2,
-    "Emilia Romagna Grand Prix"    : 2,
-    "French Grand Prix"            : 2,
+# ── Overtake difficulty per circuit (0–1, higher = harder to overtake) ─────────
+OVERTAKE_DIFFICULTY: dict[str, float] = {
+    "Monaco Grand Prix": 0.95,
+    "Singapore Grand Prix": 0.80,
+    "Hungarian Grand Prix": 0.75,
+    "Emilia Romagna Grand Prix": 0.65,
+    "Spanish Grand Prix": 0.60,
+    "Japanese Grand Prix": 0.55,
+    "Dutch Grand Prix": 0.65,
+    "Azerbaijan Grand Prix": 0.30,
+    "Bahrain Grand Prix": 0.40,
+    "Australian Grand Prix": 0.50,
+    "Chinese Grand Prix": 0.45,
+    "Las Vegas Grand Prix": 0.35,
+    "Miami Grand Prix": 0.50,
+    "Saudi Arabian Grand Prix": 0.40,
+    "British Grand Prix": 0.45,
+    "Italian Grand Prix": 0.35,
+    "Belgian Grand Prix": 0.40,
+    "Austrian Grand Prix": 0.45,
+    "Canadian Grand Prix": 0.40,
+    "Abu Dhabi Grand Prix": 0.50,
+    "São Paulo Grand Prix": 0.45,
+    "Mexican Grand Prix": 0.55,
+    "United States Grand Prix": 0.45,
+    "Qatar Grand Prix": 0.50,
 }
 
-CIRCUIT_TYPE_DEFAULT = 1  # fallback: treat unknown circuits as technical
+# ── Exponential decay sample weights (upgraded from flat 0.4×) ─────────────────
+YEAR_WEIGHTS: dict[int, float] = {
+    2022: 0.20,
+    2023: 0.30,
+    2024: 0.50,
+    2025: 0.80,
+    2026: 1.00,
+}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# INDIVIDUAL FEATURE BUILDERS
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _add_grid_and_quali(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Carry forward grid_position and quali_gap_to_pole (= gap_to_pole_s).
-
-    gap_to_pole_s is renamed to quali_gap_to_pole for clarity.
-    Pole sitter always has gap = 0.0 (enforced here in case of float drift).
-    """
     df = df.copy()
-
     if "gap_to_pole_s" in df.columns:
         df["quali_gap_to_pole"] = df["gap_to_pole_s"].clip(lower=0.0)
     else:
         df["quali_gap_to_pole"] = np.nan
         logger.warning("gap_to_pole_s column missing — quali_gap_to_pole set to NaN.")
-
     return df
 
 
 def _add_rolling_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add rolling_avg_finish_3 and rolling_dnf_rate_3 per driver.
-
-    Both use .shift(1) so the current race result is NEVER in the window.
-    NaN values (first races in a season) are filled with the driver's own
-    season average for that metric.
-
-    Rolling signal rationale (from EDA)
-    ------------------------------------
-    - rolling_avg_finish_3 : top correlated safe feature with top3_finish
-    - rolling_dnf_rate_3   : DNF rate 2026 ≈ 12% vs 2025 ≈ 8%;
-                             meaningful signal, especially for 2026 season
-    """
     df = df.copy()
     df = df.sort_values(["driver_abbr", "year", "round"]).reset_index(drop=True)
 
     def _rolling_mean_shifted(series: pd.Series, window: int = 3) -> pd.Series:
         return series.shift(1).rolling(window, min_periods=1).mean()
 
-    # ── rolling_avg_finish_3 ──────────────────────────────────────────────
     df["rolling_avg_finish_3"] = (
         df.groupby(["driver_abbr", "year"])["final_position"]
         .transform(_rolling_mean_shifted)
     )
-
-    # ── rolling_dnf_rate_3 ───────────────────────────────────────────────
-    # is_dnf must be numeric (ensured by data_loader, but coerce defensively)
     df["is_dnf"] = pd.to_numeric(df.get("is_dnf", 0), errors="coerce").fillna(0)
     df["rolling_dnf_rate_3"] = (
         df.groupby(["driver_abbr", "year"])["is_dnf"]
         .transform(_rolling_mean_shifted)
     )
-
-    # ── Fill NaN with per-driver season average ───────────────────────────
     for feat in ["rolling_avg_finish_3", "rolling_dnf_rate_3"]:
         season_avg = df.groupby(["driver_abbr", "year"])[feat].transform("mean")
         df[feat] = df[feat].fillna(season_avg)
-        # Secondary fallback: if whole season is NaN, fill with global median
-        global_fallback = df[feat].median()
-        df[feat] = df[feat].fillna(global_fallback)
-
+        df[feat] = df[feat].fillna(df[feat].median())
     return df
 
 
 def _add_constructor_rank(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add constructor_rank: team's cumulative championship rank *before*
-    each race (using points accumulated in prior rounds of the same season).
-
-    Rank 1 = most points. Uses shift(1) per team per season to exclude
-    the current race's points contribution.
-    """
     df = df.copy()
     df = df.sort_values(["year", "round", "team"]).reset_index(drop=True)
-
-    # Cumulative team points up to (but not including) current round
     team_pts = (
         df.groupby(["year", "team", "round"])["points"]
         .sum()
@@ -169,35 +141,22 @@ def _add_constructor_rank(df: pd.DataFrame) -> pd.DataFrame:
         team_pts.groupby(["year", "team"])["round_team_pts"]
         .transform(lambda x: x.shift(1).cumsum().fillna(0))
     )
-
-    # Rank teams by cumulative points within each (year, round)
     team_pts["constructor_rank"] = (
         team_pts.groupby(["year", "round"])["cum_pts"]
         .rank(ascending=False, method="min")
         .astype(int)
     )
-
     df = df.merge(
         team_pts[["year", "team", "round", "constructor_rank"]],
         on=["year", "team", "round"],
         how="left",
     )
-
-    # Round 1 always has rank NaN (no prior data) → fill with midpoint
     n_teams = df["team"].nunique()
     df["constructor_rank"] = df["constructor_rank"].fillna((n_teams + 1) / 2)
-
     return df
 
 
 def _add_circuit_type(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Map event_name → circuit_type integer encoding.
-
-    0 = street circuit
-    1 = technical circuit (default for unknowns)
-    2 = high-speed circuit
-    """
     df = df.copy()
     df["circuit_type"] = (
         df["event_name"]
@@ -205,90 +164,92 @@ def _add_circuit_type(df: pd.DataFrame) -> pd.DataFrame:
         .fillna(CIRCUIT_TYPE_DEFAULT)
         .astype(int)
     )
+    return df
 
-    unmapped = df.loc[df["circuit_type"] == CIRCUIT_TYPE_DEFAULT, "event_name"].unique()
-    if len(unmapped) > 0:
-        logger.info(
-            "circuit_type: %d unmapped event(s) defaulted to %d (technical): %s",
-            len(unmapped), CIRCUIT_TYPE_DEFAULT, list(unmapped),
-        )
 
+def _add_overtake_difficulty(df: pd.DataFrame) -> pd.DataFrame:
+    """NEW: add overtake_difficulty feature per circuit."""
+    df = df.copy()
+    df["overtake_difficulty"] = (
+        df["event_name"]
+        .map(OVERTAKE_DIFFICULTY)
+        .fillna(0.5)
+    )
+    return df
+
+
+def _add_driver_circuit_history(df: pd.DataFrame) -> pd.DataFrame:
+    """NEW: each driver's historical avg finishing position at this specific circuit."""
+    df = df.copy()
+    circuit_history = (
+        df.groupby(["driver_abbr", "event_name"])["final_position"]
+        .mean()
+        .rename("driver_circuit_avg_pos")
+        .reset_index()
+    )
+    df = df.merge(circuit_history, on=["driver_abbr", "event_name"], how="left")
+    df["driver_circuit_avg_pos"] = df["driver_circuit_avg_pos"].fillna(10.0)
+    return df
+
+
+def _add_weather_features(df: pd.DataFrame) -> pd.DataFrame:
+    """NEW: attempt to load weather from FastF1; fallback to dry defaults."""
+    df = df.copy()
+    df["is_wet_race"] = 0
+    df["avg_air_temp"] = 25.0
+    df["avg_humidity"] = 50.0
+
+    for (year, round_num), group_idx in df.groupby(["year", "round"]).groups.items():
+        try:
+            session = fastf1.get_session(int(year), int(round_num), "R")
+            session.load(weather=True, laps=False, telemetry=False)
+            weather = session.weather_data
+            is_wet = int(weather["Rainfall"].sum() > 0)
+            avg_temp = float(weather["AirTemp"].mean())
+            avg_humidity = float(weather["Humidity"].mean())
+            df.loc[group_idx, "is_wet_race"] = is_wet
+            df.loc[group_idx, "avg_air_temp"] = avg_temp
+            df.loc[group_idx, "avg_humidity"] = avg_humidity
+        except Exception:
+            pass  # keep defaults for this race
     return df
 
 
 def _add_adaptation_score(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add adaptation_score for 2026 rows only (0.0 for pre-2026).
-
-    Definition: team's average improvement in finishing position
-    from Race 1 to the current race within 2026.
-
-    Formula (per driver row at round R):
-        avg_pos_race1  = team's mean final_position at round 1 (2026)
-        avg_pos_recent = team's rolling mean final_position over last 3 rounds
-        adaptation_score = avg_pos_race1 - avg_pos_recent
-
-    Positive score → team has improved (lower position = better).
-    Uses shift(1) data already computed in rolling_avg_finish_3.
-    Set to 0.0 for pre-2026 (no regulation reset context).
-    """
     df = df.copy()
     df["adaptation_score"] = 0.0
-
-    if df_2026_mask := (df["year"] == 2026).any():
+    if (df["year"] == 2026).any():
         mask_2026 = df["year"] == 2026
-
-        # Team avg finishing position at round 1 (2026)
         round1_avg = (
             df[mask_2026 & (df["round"] == df.loc[mask_2026, "round"].min())]
             .groupby("team")["final_position"]
             .mean()
             .rename("team_pos_round1")
         )
-
         df = df.merge(round1_avg, on="team", how="left")
-
-        # adaptation_score = baseline - current rolling avg (already shift(1))
         df.loc[mask_2026, "adaptation_score"] = (
             df.loc[mask_2026, "team_pos_round1"]
             - df.loc[mask_2026, "rolling_avg_finish_3"]
         ).fillna(0.0)
-
         df = df.drop(columns=["team_pos_round1"], errors="ignore")
-
     return df
 
 
 def _add_sample_weight(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Assign sample_weight per row based on season year.
-
-    2026 → 1.0 (primary signal, regulation reset year)
-    pre-2026 → 0.4 (historical context, reduced trust)
-    """
+    """UPGRADED: exponential decay weights instead of flat 0.4×."""
     df = df.copy()
-    df["sample_weight"] = df["year"].apply(
-        lambda y: WEIGHT_2026 if y == 2026 else WEIGHT_PRE_2026
-    )
+    df["sample_weight"] = df["year"].map(YEAR_WEIGHTS).fillna(WEIGHT_PRE_2026)
     return df
 
 
 def _add_target(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add top3_finish binary target: 1 if final_position <= 3, else 0.
-    NaN final_position (unclassified) → 0.
-    """
     df = df.copy()
     df["final_position"] = pd.to_numeric(df["final_position"], errors="coerce")
     df["top3_finish"] = (df["final_position"] <= 3).fillna(False).astype(int)
     return df
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN PIPELINE
-# ─────────────────────────────────────────────────────────────────────────────
-
-#: Ordered list of model input features — excludes all LEAKAGE_COLS
+# ── Feature columns ────────────────────────────────────────────────────────────
 FEATURE_COLS: list[str] = [
     "grid_position",
     "quali_gap_to_pole",
@@ -298,223 +259,109 @@ FEATURE_COLS: list[str] = [
     "circuit_type",
     "adaptation_score",
     "pit_stop_count",
+    # NEW features
+    "overtake_difficulty",
+    "driver_circuit_avg_pos",
+    "is_wet_race",
+    "avg_air_temp",
+    "avg_humidity",
 ]
 
 
 def build_features(
     df_raw: pd.DataFrame,
     write_metadata: bool = True,
+    include_weather: bool = False,  # set True when retraining with full data
 ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
-    """
-    Run the full feature engineering pipeline on a raw combined DataFrame.
-
-    Steps
-    -----
-    1. Sort by driver + year + round
-    2. Add grid_position + quali_gap_to_pole
-    3. Add rolling_avg_finish_3 + rolling_dnf_rate_3 (shift=1, NaN-filled)
-    4. Add constructor_rank (cumulative, shift=1)
-    5. Add circuit_type (hardcoded lookup)
-    6. Add adaptation_score (2026 only)
-    7. Add sample_weight
-    8. Add top3_finish target
-    9. Drop rows where core features are all NaN (unrunnable races)
-    10. Optionally write final feature list to model_metadata.json
-
-    Parameters
-    ----------
-    df_raw : pd.DataFrame
-        Combined raw DataFrame from data_loader.collect_season().
-        Must contain: driver_abbr, team, year, round, event_name,
-        final_position, grid_position, gap_to_pole_s, is_dnf,
-        pit_stop_count, points.
-    write_metadata : bool, default True
-        If True, write FEATURE_COLS to model_metadata.json["safe_feature_cols"].
-
-    Returns
-    -------
-    X : pd.DataFrame
-        Feature matrix (shape: n_samples × len(FEATURE_COLS)).
-    y : pd.Series
-        Binary target — top3_finish (0 or 1).
-    weights : pd.Series
-        Sample weights aligned with X and y.
-    """
     logger.info("━━━ Feature Engineering Pipeline ━━━")
     logger.info("Input shape: %s", df_raw.shape)
 
     df = df_raw.copy()
     df = df.sort_values(["driver_abbr", "year", "round"]).reset_index(drop=True)
 
-    # ── Step-by-step feature construction ────────────────────────────────
     df = _add_grid_and_quali(df)
-    logger.info("✅ Step 1/7 — grid_position + quali_gap_to_pole")
-
+    logger.info("✅ Step 1/9 — grid_position + quali_gap_to_pole")
     df = _add_rolling_features(df)
-    logger.info("✅ Step 2/7 — rolling_avg_finish_3 + rolling_dnf_rate_3")
-
+    logger.info("✅ Step 2/9 — rolling_avg_finish_3 + rolling_dnf_rate_3")
     df = _add_constructor_rank(df)
-    logger.info("✅ Step 3/7 — constructor_rank")
-
+    logger.info("✅ Step 3/9 — constructor_rank")
     df = _add_circuit_type(df)
-    logger.info("✅ Step 4/7 — circuit_type")
-
+    logger.info("✅ Step 4/9 — circuit_type")
+    df = _add_overtake_difficulty(df)
+    logger.info("✅ Step 5/9 — overtake_difficulty (NEW)")
+    df = _add_driver_circuit_history(df)
+    logger.info("✅ Step 6/9 — driver_circuit_avg_pos (NEW)")
+    if include_weather:
+        df = _add_weather_features(df)
+        logger.info("✅ Step 7/9 — weather features (is_wet_race, avg_air_temp, avg_humidity)")
+    else:
+        df["is_wet_race"] = 0
+        df["avg_air_temp"] = 25.0
+        df["avg_humidity"] = 50.0
+        logger.info("⏭️  Step 7/9 — weather features skipped (include_weather=False)")
     df = _add_adaptation_score(df)
-    logger.info("✅ Step 5/7 — adaptation_score")
-
+    logger.info("✅ Step 8/9 — adaptation_score")
     df = _add_sample_weight(df)
-    logger.info("✅ Step 6/7 — sample_weight")
-
+    logger.info("✅ Step 9/9 — exponential decay sample_weight (NEW)")
     df = _add_target(df)
-    logger.info("✅ Step 7/7 — top3_finish target")
 
-    # ── Confirm no LEAKAGE_COLS sneak into features ───────────────────────
     leaked = [c for c in FEATURE_COLS if c in LEAKAGE_COLS]
     if leaked:
-        raise ValueError(
-            f"LEAKAGE DETECTED — remove these from FEATURE_COLS: {leaked}"
-        )
+        raise ValueError(f"LEAKAGE DETECTED — remove from FEATURE_COLS: {leaked}")
 
-    # ── Build X, y, weights ───────────────────────────────────────────────
     available_features = [c for c in FEATURE_COLS if c in df.columns]
-    missing_features   = [c for c in FEATURE_COLS if c not in df.columns]
-
+    missing_features = [c for c in FEATURE_COLS if c not in df.columns]
     if missing_features:
-        logger.warning("Missing features (will be excluded): %s", missing_features)
+        logger.warning("Missing features (excluded): %s", missing_features)
 
-    # Drop rows where ALL core features are NaN
     df_model = df.dropna(subset=available_features, how="all").copy()
-
-    # Impute remaining NaN with column median (XGBoost handles NaN natively,
-    # but explicit imputation improves SHAP stability)
     for col in available_features:
         null_n = df_model[col].isna().sum()
         if null_n > 0:
             median_val = df_model[col].median()
             df_model[col] = df_model[col].fillna(median_val)
-            logger.info(
-                "  Imputed %d NaN in %-25s → median=%.3f",
-                null_n, col, median_val,
-            )
+            logger.info(" Imputed %d NaN in %-25s → median=%.3f", null_n, col, median_val)
 
-    X       = df_model[available_features].reset_index(drop=True)
-    y       = df_model["top3_finish"].reset_index(drop=True)
+    X = df_model[available_features].reset_index(drop=True)
+    y = df_model["top3_finish"].reset_index(drop=True)
     weights = df_model["sample_weight"].reset_index(drop=True)
 
-    # ── Verify class balance ──────────────────────────────────────────────
     top3_rate = y.mean()
-    logger.info(
-        "Target distribution — top3=1: %.1f%% | top3=0: %.1f%%",
-        top3_rate * 100, (1 - top3_rate) * 100,
-    )
-    if top3_rate < 0.10 or top3_rate > 0.25:
-        logger.warning(
-            "Unexpected top3 rate %.1f%% — check final_position parsing.",
-            top3_rate * 100,
-        )
+    logger.info("Target: top3=1: %.1f%% | top3=0: %.1f%%", top3_rate * 100, (1 - top3_rate) * 100)
+    logger.info("Output X: %s | y: %s", X.shape, y.shape)
 
-    logger.info("Output  X : %s", X.shape)
-    logger.info("Output  y : %s (dtype=%s)", y.shape, y.dtype)
-    logger.info("Weights   : 2026=%.1f  pre-2026=%.1f", WEIGHT_2026, WEIGHT_PRE_2026)
-
-    # ── Write final feature list to model_metadata.json ──────────────────
     if write_metadata:
         _update_metadata(available_features, X)
-
     return X, y, weights
 
 
 def _update_metadata(feature_cols: list[str], X: pd.DataFrame) -> None:
-    """
-    Read existing model_metadata.json (if any), append feature engineering
-    metadata, and write back.
-
-    Written fields
-    --------------
-    safe_feature_cols      : ordered list of features used in X
-    feature_dtypes         : dtype per feature
-    feature_null_pct       : % null before imputation (informational)
-    leakage_cols           : echoed from constants.LEAKAGE_COLS
-    """
     metadata = {}
     if META_PATH.exists():
         try:
             metadata = json.loads(META_PATH.read_text())
         except json.JSONDecodeError:
-            logger.warning("model_metadata.json is malformed — overwriting.")
-
+            logger.warning("model_metadata.json malformed — overwriting.")
     metadata["safe_feature_cols"] = feature_cols
-    metadata["feature_dtypes"]    = {c: str(X[c].dtype) for c in feature_cols}
-    metadata["leakage_cols"]      = LEAKAGE_COLS
-
+    metadata["feature_dtypes"] = {c: str(X[c].dtype) for c in feature_cols}
+    metadata["leakage_cols"] = LEAKAGE_COLS
     META_PATH.write_text(json.dumps(metadata, indent=2))
     logger.info("💾 Feature metadata written → %s", META_PATH)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CLI ENTRY POINT
-# ─────────────────────────────────────────────────────────────────────────────
-
-def main() -> None:
-    """
-    End-to-end feature engineering pipeline.
-
-    Loads all available raw_YYYY.csv files, runs build_features(),
-    and prints output shapes and feature statistics.
-    """
+if __name__ == "__main__":
     import argparse
-
-    parser = argparse.ArgumentParser(description="Build feature matrix for F1 predictor.")
-    parser.add_argument(
-        "--years", type=int, nargs="+",
-        default=[2022, 2023, 2024, 2025, 2026],
-        help="Seasons to include (e.g. --years 2023 2024 2025 2026).",
-    )
-    parser.add_argument(
-        "--save", action="store_true",
-        help="Save X, y, weights to data/features.csv.",
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--years", type=int, nargs="+", default=[2022, 2023, 2024, 2025, 2026])
+    parser.add_argument("--save", action="store_true")
+    parser.add_argument("--weather", action="store_true")
     args = parser.parse_args()
-
-    # Load raw CSVs
     frames = []
     for yr in args.years:
         path = DATA_DIR / f"raw_{yr}.csv"
         if path.exists():
             frames.append(pd.read_csv(path))
-            logger.info("Loaded %s (%d rows)", path.name, len(frames[-1]))
-        else:
-            logger.warning("Missing %s — skipping.", path)
-
-    if not frames:
-        logger.error("No raw data found. Run data_loader.py first.")
-        return
-
     df_raw = pd.concat(frames, ignore_index=True)
-
-    X, y, weights = build_features(df_raw, write_metadata=True)
-
-    # ── Summary ───────────────────────────────────────────────────────────
-    print("\n" + "━" * 55)
-    print(f"{'FEATURE ENGINEERING SUMMARY':^55}")
-    print("━" * 55)
-    print(f"  Samples          : {len(X):,}")
-    print(f"  Features         : {X.shape[1]}")
-    print(f"  Top-3 rate       : {y.mean():.1%}")
-    print(f"  2026 rows        : {(weights == WEIGHT_2026).sum():,}  (weight=1.0)")
-    print(f"  Pre-2026 rows    : {(weights == WEIGHT_PRE_2026).sum():,}  (weight=0.4)")
-    print("━" * 55)
-    print("\n  Feature stats:")
+    X, y, weights = build_features(df_raw, write_metadata=True, include_weather=args.weather)
+    print(f"\nSamples: {len(X)} | Features: {X.shape[1]} | Top-3 rate: {y.mean():.1%}")
     print(X.describe().round(3).to_string())
-
-    if args.save:
-        out_path = DATA_DIR / "features.csv"
-        save_df  = X.copy()
-        save_df["top3_finish"]   = y
-        save_df["sample_weight"] = weights
-        save_df.to_csv(out_path, index=False)
-        logger.info("💾 Saved features → %s", out_path)
-
-
-if __name__ == "__main__":
-    main()
