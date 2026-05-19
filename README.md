@@ -7,24 +7,6 @@
 A machine-learning model that predicts **Formula 1 podium finishers** for the
 2026 season — handling the unique challenges of a full regulation reset year.
 
----
-
-## Demo
-
-> 📽️ **Record a GIF** of the app using:
-> - **[LICEcap](https://www.cockos.com/licecap/)** (Windows / macOS — free, lightweight)
-> - **[Gifski](https://gif.ski/)** (macOS — high-quality, drag-and-drop)
->
-> Steps:
-> 1. Run `streamlit run app.py` locally
-> 2. Open LICEcap → drag frame over the browser window
-> 3. Set FPS to 10, click **Record**
-> 4. Navigate through the three pages (Next Race → Model Performance → Race Replay)
-> 5. Click **Stop** → save as `docs/demo.gif`
-> 6. Replace the placeholder below with: `![Demo](docs/demo.gif)`
-
-<!-- Replace this line with your recorded GIF -->
-![Demo placeholder — record with LICEcap or Gifski](https://placehold.co/900x500/15151E/E8002D?text=Record+Demo+GIF+Here)
 
 ---
 
